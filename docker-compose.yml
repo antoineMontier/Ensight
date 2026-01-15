@@ -1,0 +1,66 @@
+services:
+  # --- 1. SERVICE OLLAMA (Le moteur LLM) ---
+  ollama-service:
+    image: ollama/ollama
+    container_name: ollama-container
+    restart: always
+    volumes:
+      - ./ollama_data:/root/.ollama # Persistance des modèles (Mistral) sur ton disque
+
+  # --- 2. SERVICE D'INITIALISATION (Pour télécharger Mistral automatiquement) ---
+  ollama-pull-model:
+    image: ollama/ollama
+    container_name: ollama-pull-model
+    # Ce conteneur se lance, demande à ollama-service de télécharger mistral, puis s'arrête
+    entrypoint: /bin/sh -c "sleep 5; ollama pull mistral"
+    environment:
+      - OLLAMA_HOST=ollama-service
+    depends_on:
+      - ollama-service
+
+  # --- 3. SERVICE RAG (Ton code Python) ---
+  rag-service:
+    build: ./projet-intensif-knowledge-documents-rag
+    container_name: rag-service
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama-service:11434 # On pointe vers le service Docker
+      - PDF_BASE_URL=http://backend-api:3000    # On pointe vers le backend Node
+    volumes:
+      - ./projet-intensif-knowledge-documents-rag/src/chroma_db:/app/src/chroma_db
+      - ./projet-intensif-knowledge-documents-rag/src/data:/app/src/data
+    depends_on:
+      - ollama-service
+  # --- 4. SERVICE BACKEND (Ton code Node.js) ---
+  backend-api:
+    build: ./projet-intensif-knowledge-documents
+    container_name: backend-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - RAG_API_URL=http://rag-service:8000/rag
+      - PYTHONUNBUFFERED=1
+      - BACKEND_INTERNAL_URL=http://backend-api:3000
+    volumes:
+      - ./projet-intensif-knowledge-documents/files:/app/files
+      - ./projet-intensif-knowledge-documents/src/config:/app/src/config
+    depends_on:
+      - rag-service
+  # --- 5. SERVICE FRONTEND (Vite / React) ---
+  frontend-app:
+    build: ./projet-intensif-knowledge-documents-front
+    container_name: frontend-container
+    restart: always
+    ports:
+      - "80:5173"
+    environment:
+      - HOST_IP=${MY_IP:-localhost} # variable d'environnement calculée par run.sh
+    volumes:
+      - ./projet-intensif-knowledge-documents-front:/app
+      - /app/node_modules
+    depends_on:
+      - backend-api
