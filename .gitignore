@@ -1,0 +1,13 @@
+aperso
+aperso/*
+node_modules
+node_modules/*
+ollama_data
+ollama_data/*
+projet-intensif-knowledge-documents/node_modules
+projet-intensif-knowledge-documents/node_modules/*
+projet-intensif-knowledge-documents/package-lock.json
+projet-intensif-knowledge-documents-front/node_modules
+projet-intensif-knowledge-documents-front/node_modules/*
+projet-intensif-knowledge-documents-front/.env
+projet-intensif-knowledge-documents-front/package-lock.json
